@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title> 
+      notes - Weighted Finite-State Transducers in Speech Recognition
+    </title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="text/javascript" async
+      src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <meta charset="UTF-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0'/>
+  </head>
+  <body>
+  <div id='page'>
+    <a href='./index.html'>&larr; home</a>
+    
+    <header>
+      <a href='https://repository.upenn.edu/cgi/viewcontent.cgi?article=1010&context=cis_papers'> Weighted Finite-State Transducers in Speech Recognition </a>
+    </header>
+
+    <div class='authors'>
+    Mehryar Mohri, Fernando Pereira and Michael Riley 2001
+    </div>
+
+    <p>
+    This paper introduces WFSAs, WFSTs and a few related algorithms. The reason
+    one might care about WFSTs is because they provide a framework for composing
+    numerical information about symbol sequences of different resolutions. Thus
+    we can assemble a word-level language model with a character-level acoustic
+    model.
+    </p>
+
+    <h1>
+    BASIC DEFINITIONS
+    </h1>
+
+    <h2>
+    SEMIRING
+    </h2>
+
+    <h3>
+    DEFINITION
+    </h3>
+
+    <p>
+    A semiring \( \mathbb{K} \) is the same as an algebraic
+    <a href='https://en.wikipedia.org/wiki/Ring_(mathematics)#Definition'>ring</a>
+    except elements may not have additive inverses. It's written:
+
+    \[ (\mathbb{K}, \oplus, \otimes, \overline{0}, \overline{1}) \]
+
+    where \( \oplus \) is addition, \( \otimes \) is multiplication and \(
+    \overline{0}, \overline{1} \) are their respective identities.
+    </p>
+
+    <h3>
+    EXAMPLES
+    </h3>
+    
+    <ul>
+      <li>
+      \( (\mathbb{N}, +, \cdot, 0, 1) \) (notice the natural numbers
+      do not have additive inverses)
+      </li>
+      <li>
+      The probability semiring \( (\mathbb{R}, +, \cdot, 0, 1)
+      </li>
+      <li>
+      The <em>tropical semiring</em> \( (\mathbb{R}_+ \cup \{\infty\}, \min, +,
+      \infty, 0) \)
+      </li>
+    </ul>
+
+    <h2>
+    WFSA
+    </h2>
+
+    <h3>
+    DEFINITION
+    </h3>
+
+    <p>
+    A <em>weighted finite-state acceptor/automaton (WFSA)</em> \( A \) over semiring \(
+    \mathbb{K} \) is a tuple \( (\Sigma, Q, E, i, F, \lambda, \rho ) \) that has:
+    </p>
+
+    <ul>
+      <li>
+      label set \( \Sigma \)
+      </li>
+      <li>
+      finite state set \( Q \)
+      </li>
+      <li>
+      finite transition set \( E \subseteq Q \times (\Sigma \cup \{ \epsilon \}
+      ) \times \mathbb{R} \times Q \)
+      </li>
+      <li>
+      initial state \( i \)
+      </li>
+      <li>
+      final state set \( F \subseteq Q \)
+      </li>
+      <li>
+      initial weight \( \lambda \in \mathbb{K} \)
+      </li>
+      <li>
+      final weight function \( \rho : F \to \mathbb{K} \)
+      </li>
+    </ul>
+
+    <p>
+    A <em>transition</em> \( t = (p[t], l[t], w[t], n[t]) \in E \) is from a
+    previous state \( p[t] \in Q \) to next state \(n[t] \in Q \) with weight
+    \(w[t] \in \mathbb{K} \) and label \( l[t] \in \Sigma \cup \{ \epsilon\} \).
+    </p>
+
+    <p>
+    A <em>path</em> in the WFSA is a sequence of transitions \(t_1... t_n\) with
+    \(n[t_i] = p[t_{i+1} ~ \forall i=1,...,n-1\). Transitions labeled with the
+    empty symbol \( \epsilon\) consume no input (i.e. \(p[t] = n[t]\)).
+    </p>
+
+    <p>
+    The <em>label of a path</em> \(\pi = t_1...t_n\) is given by \(l[\pi] =
+    l[t_1]...l[t_n]\) the concatenation of labels.
+    </p>
+
+    <p>
+    The <em>weight of a path</em> \(\pi = t_1...t_n\) is given by \(w[\pi] = 
+    \lambda \otimes w[t_1] \otimes ... \otimes w[t_n] \otimes \rho(n[t_n]) \),the
+    product of weights.
+    </p>
+
+    <p>
+    A <em>successful path</em> \(\pi=t_1...t_n\) is a path from the initial \(i\)
+    to a final state \(f \in F\).
+    </p>
+
+    <p>
+    We say \(x\) is <em>accepted</em> by the WFSA \(A\) if there exists a successful
+    path \(\pi\) such that \(l[\pi] = x\). The weight of \(x\) is given by
+    \( w[x] = \bigoplus_k w[\pi_k] \) where the set \(\{\pi_k\}_k\) is all
+    successful paths with \(l[\pi_k] = x\).
+    </p>
+
+    <p>
+    The <em>null symbol</em> \( \epsilon \) denotes that no label should
+    be produced in a transition, which allows for multiple transitions to have
+    a single label.
+    </p>
+
+    <p>
+    So essentially, a WFSA \( A\) defines a map from labels to weights, \( A:
+    \Sigma^\mathbb{N} \to \mathbb{K} \).
+    </p>
+
+    <h3>
+    EXAMPLE
+    </h3>
+
+    <div class='fig-wrapper'>
+    <div class='fig'>
+    <img src='figs/wfst_fig1.svg'>
+    <div class='caption'>
+    A language model as an WFSA over the probability semiring.
+    States are numbered and transition arrows are labeled [label]/[weight].
+    </div>
+    </div>
+    </div>
+
+    <h2>
+    WFST
+    </h2>
+
+    <p>
+    WFSTs are like WFSAs, but instead of a single label per transition, there is
+    a pair of labels, so we associate pairs of symbol sequences and weights to
+    transitions. This pairing is not always one-to-one, and there may be many
+    input labels that have the same output label.
+    </p>
+
+    <h3>
+    DEFINITION
+    </h3>
+
+    <p>
+    A <em>weighted finite-state transducer</em> \(T\) over semiring \(\mathbb{K}\)
+    is given by a tuple \( (\Sigma, \Omega, Q, E, i, F, \lambda, \rho) that has
+    all the same elements as a WFSA except:
+    </p>
+
+    <ul>
+      <li>
+      \(\Sigma\) is now the input alphabet
+      </li>
+      <li>
+      \(\Omega\) is the output alphabet
+      </li>
+      <li>
+      the transition set \( E \subseteq Q \times (\Sigma \cup \{\epsilon\}) \times
+      (\Omega \cup \{\epsilon\}) \times \mathbb{K} \times Q \)
+      </li>
+    </ul>
+
+    <p>
+    A <em>transition</em> \(t = (p[t], l_i[t], l_o[t], w[t], n[t]) \) is from
+    a source state \(p[t]\) to a destination state \(n[t]\) with weight \(w[t]\),
+    input label \(l_i[t]\) and output label \(l_o[t]\).
+    </p>
+
+    <p>
+    Paths, their weights, and successful paths are defined the same way as for 
+    WFSAs, and the input and output labels of a path are the concatentation of
+    the input and output labels of each of their transitions:
+    </p>
+
+    <ul>
+      <li>
+      \(l_i[\pi] = l_i[t_1]...l_i[t_n] \)
+      </li>
+      <li>
+      \(l_o[\pi] = l_o[t_1]...l_o[t_n] \)
+      </li>
+    </ul>
+
+    <p>
+    So a WFST is, in essence, a map \( T: \Sigma^\mathbb{N} \to \Omega^\mathbb{N}
+    \times \mathbb{K} \) that takes input labels to output labels paired with
+    probabilities.
+    </p>
+
+    <h3>
+    EXAMPLES
+    </h3>
+
+    <p>
+    If we have a WFSA \(A\), we can make it into a WFST by setting \(l_i[t] =
+    l_o[t] = l[t] \) for every transition \(t \in A\).
+    </p>
+    
+    <p>
+    In the following figure, we can see a simple pronouncing dictionary for two
+    words modeled as a WFST over the probability semiring. In this case we're
+    mapping phones as input labels to words as output labels, where phones
+    corresponding to the same word have \(\epsilon\) as their output label to
+    denote a repeat.
+    </p>
+
+    <div class='fig-wrapper'>
+    <div class='fig'>
+    <img src='figs/wfst_fig2.svg'>
+    <div class='caption'>
+    A pronouncing dictionary as a WFST over the probability semiring. States are
+    numbered and transition arrows are labeled [input label]:[output label]/[weight].
+    </div>
+    </div>
+    </div>
+
+    <h1>
+    ALGORITHMS
+    </h1>
+
+    <h2>
+    COMPOSITION
+    </h2>
+
+    <p>
+    Suppose we have two transducers \(R\) and \(S\), where the output labels of \(R\)
+    are the same as the input labels of \(S\). For example, let \(R\) be a
+    pronouncing dictionary mapping phones to words, and let \(S\) be a word-level
+    language model mapping words to sequences of words.
+    </p>
+
+    <p>
+    We would like a map from phones to sequences of words, so we want to define
+    a composition of transducers \(T = R \circ S\) such that there for a sequence
+    \(u\) of input labels of \(R\), and a sequence \(w\) of output labels of
+    \(S\), there is a single path mapping \(u \mapsto w\) which is decomposed
+    as \(R: u \mapsto v\), \(S: v \mapsto w\), with the weight \(w[w] = w[u] \otimes w[v]\).
+    </p>
+
+    <h3>
+    DEFINITION
+    </h3>
+
+    <p>
+    The <em>composition WFST</em> \(~ T = R \circ S\) over semiring \(\mathbb{K}\)
+    is defined by:
+    </p>
+
+    <ul>
+      <li>
+      input alphabet \(\Sigma_R\)
+      </li>
+      <li>
+      output alphabet \(\Omega_S\)
+      </li>
+      <li>
+      state set \(Q_T \subseteq Q_R \times Q_S\) corresponding to endpoints of
+      the allowed transitions defined below
+      </li>
+      <li>
+      a transition \(t\) from state pair \((r,s)\) to state pair
+      \((r',s')\) for every pair of transitions \(t_R \in R, t_R: r \mapsto r'\),
+      \(t_S \in S, t_S: s \mapsto s'\) such that \(l_o[t_R] = l_i[t_S]\)
+      </li>
+      <ul>
+      <li>
+      input label is \(l_i[t] = l_i[t_R]\)
+      </li>
+      <li>
+      output label is \(l_o[t] = l_o[t_S]\)
+      </li>
+      <li>
+      weight is \(w[t] = w[t_R] \otimes w[t_S] \)
+      </li>
+      </ul>
+      <li>
+      initial state \(i_T = (i_R, i_S)\)
+      </li>
+      <li>
+      final state set \(F_T \in F_R \times F_S\)
+      </li>
+      <li>
+      initial weight \(\lambda_R \in \mathbb{K}\) 
+      </li>
+      <li>
+      final weight function \(\rho: F_T \to \mathbb{K}\)
+      </li>
+    </ul>
+
+    <p>
+    One complication occurs when there are \(\epsilon\) labels to match in the
+    transducers. Section 4 of <a href='https://arxiv.org/pdf/cs/0503077.pdf'>Mohri et. al 2000</a>
+    treats this in more detail, but the basic idea is to introduce an \(\epsilon\)-filter
+    transducer \(F\) in between \(R\) and \(S\) so that no redundant paths are
+    created in the composition \(T = R \circ F \circ S\).
+    </p>
+
+    <h3>
+    EXAMPLE
+    </h3>
+
+    <p>
+    The following figure, taken from Figure 3 in the paper, gives an example of 
+    two WFSTs and their composition.
+    </p>
+
+    <div class='fig-wrapper'>
+    <div class='fig'>
+    <div class='fig-grid'>
+    <img src='figs/wfst_fig4.svg' style='width: 45%;'>
+    <img src='figs/wfst_fig5.svg' style='width: 45%;'>
+    </div>
+    <img src='figs/wfst_fig6.svg'>
+    <div class='caption'>
+    In the top left is WFST \(R\), and in top right is WFST \(S\). The bottom
+    figure represents their composition \(R \circ S\).
+    States are numbered and transition arrows are labeled [input label]:[output label]/[weight].
+    </div>
+    </div>
+    </div>
+
+    <h2>
+    INTERSECTION
+    </h2>
+
+    <p>
+    The <em>intersection</em> of two WFSAs is the composition of their
+    corresponding WFSTs. Note this is symmetric as every label is doubled for the
+    WFSA \( \to \) WFST operation, though what is interpreted as the input label
+    and output label will change with the order.
+    </p>
+
+    <h2>
+    DETERMINIZATION
+    </h2>
+
+    <h3>
+    DEFINITION
+    </h3>
+
+    <p>
+    A WFST is <em>deterministic</em> or <em>sequential</em> if and only if each
+    of its states has at most one transition with any given input label, and
+    there are no input \(\epsilon\) labels.
+    </p>
+
+    <p>
+    Determinization is the process of taking a non-deterministic WFST and making
+    it deterministic. The reason determinization matters is that it removes redundancy.
+    There is only ever one path matching any input sequence, making computation
+    simpler.
+    </p>
+
+    <p>
+    The way we proceed is by keeping track of all subsets of states reachable
+    by the same input string as pairs \( (q,w) \) where \(q\) is the state and
+    \(w\) is a leftover weight.
+    We start with \( \{(i,0)\} \) as the initial subset, and process subsets
+    in turn. Consider the subset \(S = \{(q_k,w_k)\}_k \).
+    </p>
+
+    <p>
+    For every \(a \in \Sigma\), consider the set of transitions leaving some \(q_k \in S\)
+    labeled by \(a\). Call this set \( \{t_{k,l}\}_{k,l} \). If this is nonempty,
+    a new transition \(t\) is constructed in the determinized automaton
+    with weight \(\min_{k,l} w_k + w[t_{k,l}]\).
+    </p>
+
+    <p>
+    Thus \(p[t] = S\), and the destination \(n[t]\) is the subset of pairs
+    \(S' = \{(q_l, w_l)\}_l\) in which \(q_l\) is a state reached by a
+    transition \(t_{k,l}\)labeled with \(a\) from \(q_k \in S\), with new leftover
+    weight \(w_l = w[t_{k,l}] - w_k\).
+    </p>
+
+    <h3>
+    EXAMPLE
+    </h3>
+
+    <p>
+    The following figures are taken from Figures 4 and 5 and show weighted
+    determinization of a WFSA.
+    </p>
+
+    <div class='fig-wrapper'>
+    <div class='fig'>
+    <div class='fig-grid'>
+    <img src='figs/wfst_fig7.svg' style='width: 45%;'>
+    <img src='figs/wfst_fig8.svg' style='width: 45%;'>
+    </div>
+    <div class='caption'>
+    Left is an example of a WFSA that is not deterministic. Right is the determinized
+    version. States are numbered and transitions are labeled [label]/[weight].
+    </div>
+    </div>
+    </div>
+
+    <h2>
+    MINIMIZATION
+    </h2>
+
+    <h3>
+    DEFINITION
+    </h3>
+
+    <p>
+    The goal of <em>minimization</em> is to produce an an equivalent automaton
+    that has the least number of states and least number of transitions among
+    all possible equivalent deterministic automata.
+    </p>
+
+    <p>
+    This is done by reweighting each path with a potential function \(V: Q \to
+    \mathbb{K} \) that updates each transition weight as
+    \[ w[t] \gets w[t] + V(n[t]) - V(p[t]) \]
+    and each final weight as
+    \[ \rho(f) = \rho(f) + V(i) - V(f). \]
+    If we expand the sum across a path, there's no change in the total weight.
+    </p>
+
+    <p>
+    Now minimization proceeds by weight pushing, where the potential function
+    gives each state the lowest path weight from that state to the final state,
+    and then classical minimization.
+    </p>
+
+    <h3>
+    EXAMPLE
+    </h3>
+
+    <p>
+    The following figure provides an example and is taken from Figures 6 and 7.
+    </p>
+
+    <div class='fig-wrapper'>
+    <div class='fig'>
+    <div class='fig-grid'>
+    <img src='figs/wfst_fig8.svg' style='width: 45%;'>
+    <img src='figs/wfst_fig9.svg' style='width: 45%;'>
+    </div>
+    <img src='figs/wfst_fig10.svg'>
+    <div class='caption'>
+    Left is the example of the deterministic WFSA. Right is the version
+    resulting from weight pushing. Bottom is the resulting WFST after minimization. States are numbered and transitions are labeled [label]/[weight].
+   [label]/[weight].
+    </div>
+    </div>
+    </div>
+
+    <h1>
+    SUMMARY
+    </h1>
+
+    <p>
+    These notes aimed to introduce WFSAs and WFSTs as well as a few important
+    algorithms that are useful during decoding in speech recognition.
+    </p>
+
+    <p>
+    In a neural setting, we typically have a character-level acoustic model, and
+    some kind of word-level language model, whether it be n-gram or neural. One
+    way to compose these two things is to create a very large intermediate spelling
+    dictionary WFST from allowed sequences according to the acoustic model. Then
+    we can compose the acoustic model, spelling dictionary and word model as WFSTs
+    and compute highest-probability sequences over the composed WFST.
+    </p>
+
+    <p>
+    Thus WFSTs give us a framework to compose information about symbol sequences
+    of different resolutions, and incorporate sentence structure into character
+    or phone-level acoustic models.
+    </p>
+
+    <p>
+    <a href='http://www.openfst.org/twiki/bin/view/FST/WebHome'>OpenFst</a>
+    is a software toolkit with implementations of all these operations.
+    </p>
+
+  </div>
+  </body>
+</html>
+

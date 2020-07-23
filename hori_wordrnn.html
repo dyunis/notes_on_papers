@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title> 
+      notes - End-to-End Speech Recognition with Word-Based RNN Language Models 
+    </title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="text/javascript" async
+      src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-MML-AM_CHTML">
+    </script>
+    <meta charset="UTF-8">
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0'/>
+  </head>
+  <body>
+  <div id='page'>
+    <a href='./index.html'>&larr; home</a>
+
+    <header>
+      <a href='https://arxiv.org/pdf/1808.02608.pdf'> End-to-End Speech Recognition with Word-Based RNN Language Models </a>
+    </header>
+
+    <div class='authors'>
+    Takaaki Hori, Jaejin Cho and Shinji Watanabe 2018
+    </div>
+
+    <p>
+    This paper explains how the <a href='https://github.com/espnet/espnet'>ESPnet toolkit</a>
+    incorporates word-level language models into character or phone-level
+    predictions. Their methods are modernizations of previous work
+    (<a href='http://www.asel.udel.edu/icslp/cdrom/vol4/382/a382.pdf'>Ortmanns et al. 1996</a>,
+    <a href='https://ieeexplore.ieee.org/document/540308'>Alleva et al. 1996</a>)
+    on n-gram language model incorporation, and can be used with CTC as well as encoder-decoder models.
+    </p>
+
+    <p>
+    These notes only aim to explain Section 3 on the two kinds of language models.
+    </p>
+
+    <h1>
+    USING LANGUAGE MODELS
+    </h1>
+
+    <p>
+    While decoding in ASR, the typical way we frame the problem is that we'd
+    like to find the most probable character sequence \(\hat{C}\) given speech
+    input \(X\):
+    \[ \hat{C} = \text{argmax}_{C} \log p_{AM}(C | X) + \gamma \log p_{LM}(C) \]
+    where the first term corresponds to an acoustic model probability, and the
+    second corresponds to a language model probability.
+    </p>
+
+    <p>
+    When both the acoustic model and the language model have the same token set
+    as input, it's simple to just sum their log probabilities at each token. However,
+    when their token sets are distinct, like for a character-level ASR model and
+    a word-level language model, it gets more complex. For the rest of this
+    write-up, we'll consider the case of a character-level acoustic model and
+    a word-level language model.
+    </p>
+
+    <h2>
+    BASIC APPROACH
+    </h2>
+
+    <p>
+    One way to tackle the mismatch between token sets is to compose the acoustic
+    model and the language model into a WFST to decode. This won't work for
+    RNN language models, however, because they do not have static state: they
+    can depend on any length of previous context, thus they can only be approximated
+    by a WFST.
+    </p>
+
+    <p>
+    However, note that a character acoustic model has a character for spaces,
+    \(\text{&ltspace&gt}\), in its token set, so one heuristic is to only add language model
+    probabilities once a space is output by the acoustic model.
+    </p>
+
+    <h2>
+    MULTI-LEVEL RNN-LM 
+    </h2>
+
+    <p>
+    The multi-level RNN-LM contains two separate LMs: a character LM, \(p_{cLM}\), 
+    and word LM, \(p_{wLM}\).
+    It uses the character LM to provide probabilities within word boundaries and
+    switches to the word LM to provide probabilities of completed words.
+    </p>
+
+    <p>
+    For character \(c\) and hypothesis sequence \(g\) The formal definition is given by <a name='eq1'></a>:
+    \[
+    p_{LM}(c|g) =
+    \begin{cases}
+    \frac{p_{wLM}(w_g|\psi_g)}{p_{cLM}(w_g|\psi_g)} & \text{if } c \in S, w_g \in \mathcal{V} \\
+    p_{wLM}(\text{&ltunk&gt}|\psi_g) \cdot \tilde{\beta} & \text{if } c \in S, w_g \notin \mathcal{V} \\ 
+    p_{cLM}(c|g) & \text{otherwise}
+    \end{cases}
+    \]
+    where \(\mathcal{V}\) is the word vocabulary set (and \(\text{&ltunk&gt}\) is a
+    token for a word not in that set), \(S\) is the set of labels that end a word,
+    \(S = \{\text{&ltspace&gt}, \text{&lteos&gt}\}\), \(w_g\) is the last word of
+    the character sequence \(g\) and \(\psi_g\) is the word-level history which
+    is the word sequence in \(g\) so far, excluding \(w_g\).
+    </p>
+
+    <p>
+    As an example, consider:
+    \[
+    \begin{align*}
+    g & = \text{a , &ltspace&gt , c , a , t , &ltspace&gt , e , a , t , s} \\
+    w_g & = \text{eats} \\
+    \psi_g & = \text{a , cat} \\
+    \end{align*}
+    \]
+    </p>
+
+    <p>
+    The <a href='#eq1'>first case</a> occurs when \(g\) reaches the end of a word. The reason
+    it is a ratio is to account for the character-level probabilities that have
+    been accumulating inside \(w_g\). Formally,
+    \[ p_{cLM}(w_g | \psi_g) = \prod_{i=1}^{|w_g|} p_{cLM}(w_{g,i} | \psi_g w_{g,1}... w_{g,i-1}).\]
+    So this step serves to replace the character-level probabilities with a word-level
+    probability.
+    </p>
+
+    <p>
+    The <a href='#eq1'>second case</a> occurs at word boundaries when the word in question is
+    out of vocabulary. They assume for OOV words that their probability can
+    be computed as
+    \[p_{OOV}(w_g|\psi_g) = p_{cLM}(w_g| \text{&ltunk&gt}\psi_g) 
+    \cdot p_{wLM}(\text{&ltunk&gt})|\psi_g).
+    \]
+    They then make the approximation:
+    \[
+    \begin{align*}
+    p_{cLM}(w_g| \text{&ltunk&gt}\psi_g) & \approx p_{cLM}(w_g|\psi_g) \cdot \beta(\psi_g) \\
+    & \approx p_{cLM}(w_g|\psi_g) \cdot \tilde{\beta} 
+    \end{align*}
+    \]
+    where \(\tilde{\beta}\) is now a tunable scalar parameter. Now because
+    \(p_{cLM}(w_g|\psi_g)\) has been accumulating inside the word boundary at
+    previous steps, they don't include it in the second case.
+    </p>
+
+    <p>
+    The <a href='#eq1'>third case</a> occurs when inside a word boundary, in which case, only
+    the character-level language model is used. Note that these are cancelled
+    at every known-word boundary, but they help keep good hypotheses during beam
+    search while within a word.
+    </p>
+
+    <h2>
+    LOOK-AHEAD RNN-LM
+    </h2>
+
+    <p>
+    The look-ahead idea is to get rid of the character-level language model entirely
+    and only use a word-level model, while replacing the predictions within word
+    boundaries with something else. It's useful to represent the vocabulary \(\mathcal{V}\)
+    as a prefix tree at the character level:
+    </p>
+
+    <div class='fig-wrapper'>
+    <div class='fig'>
+    <img src='figs/hori_word_rnn_fig1.png'>
+    <div class='caption'>
+    A prefix tree representation of the vocabulary, taken from Figure 2b.
+    </div>
+    </div>
+    </div>
+
+    <p>
+    The look-ahead probability at some node of the tree \(n\) can be computed as
+    the sum of word probabilities of all accessible word-endings, \(W(n)\),
+    from that node:
+    \[ p_{LA}(n|\psi) = \sum_{w \in W(n)} p_{wLM}(w|\psi) \]
+    using a word-level language model \(p_{wLM}\) and given the previous word-level
+    context \(\psi\).
+    </p>
+
+    <p>
+    The character-level probability is then defined by <a name='eq2'></a>:
+    \[
+    p_{LM}(c|g) =
+    \begin{cases}
+    \frac{p_{wLM}(w_g|\psi_g)}{p_{LA}(n_g|\psi_g)} & \text{if } n_g \in F, c \in S \\
+    \frac{p_{LA}(n_{g \cdot c} | \psi_g)}{p_{LA}(n_{g}|\psi_g)} & \text{if } n_g \neq \text{null}, c \in \xi(n_g) \\
+    p_{wLM}(\text{&ltunk&gt}|\psi_g) \cdot \eta & \text{if } n_g \neq \text{null}, c \notin \xi(n_g) \\
+    1 & \text{otherwise}
+    \end{cases}
+    \]
+    where \(n_g\) is the node at which \(g\) is at, \(F\) is a set of word-ending
+    nodes, \(S = \{\text{&ltspace&gt}, \text{&lteos&gt}\}\) is the set of word-ending
+    characters, \(n_{g\cdot c}\) is the node of the concatentation of \(g\) and
+    \(c\), \(\text{null}\), denotes that a node is outside the prefix tree,
+    \(\xi(n_g)\) is the set of following nodes from \(n_g\), \(\text{&ltunk&gt}\)
+    represents an OOV word and \(\eta\) is a tunable scalar factor for OOV words.
+    </p>
+
+    <p>
+    The <a href='#eq2'>first case</a> gives the sequence probability at a word-ending character.
+    It must be normalized for the look-ahead probabilities that were previously
+    accumulated inside word boundaries.
+    </p>
+
+    <p>
+    The <a href='#eq2'>second case</a> gives the probability inside word boundaries. It replaces the
+    look-ahead probability that was previously computed with the look-ahead
+    probability computed for all nodes that are now reachable in the prefix tree.
+    </p>
+
+    <p>
+    The <a href='#eq2'>third case</a> gives the probability at a word boundary when we are out OOV.
+    </p>
+
+    <p>
+    The <a href='#eq2'>fourth case</a> occurs only when we are already out of the prefix tree, or
+    we have already encountered the third case, thus it contributes nothing.
+    </p>
+
+    <p>
+    In computing probabilities, whenever a \(\text{&ltspace&gt}\) gets added to
+    our hypothesis, we reset to the root of the prefix tree.
+    </p>
+
+    <h1>
+    SUMMARY
+    </h1>
+
+    <p>
+    These notes hoped to explain the word-level language model incorporation
+    techniques behind <a href='https://github.com/espnet/espnet'>ESPnet</a>. They offer an alternative to the
+    WFST-based methods that one can use with CTC, and they work with encoder-decoder
+    models.
+    </p>
+
+  </div>
+  </body>
+</html>
+
