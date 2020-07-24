@@ -128,26 +128,28 @@
     The <a href='#eq1'>second case</a> occurs at word boundaries when the word in question is
     out of vocabulary. They assume for OOV words that their probability can
     be computed as
-    \[p_{OOV}(w_g|\psi_g) = p_{cLM}(w_g| \text{&ltunk&gt}\psi_g) 
-    \cdot p_{wLM}(\text{&ltunk&gt})|\psi_g).
+    \[p_{OOV}(w_g|\psi_g) = p_{wLM}(\text{&ltunk&gt}|\psi_g) \cdot
+    p_{cLM}(w_g| \text{&ltunk&gt}\psi_g) 
     \]
     They then make the approximation:
     \[
     \begin{align*}
-    p_{cLM}(w_g| \text{&ltunk&gt}\psi_g) & \approx p_{cLM}(w_g|\psi_g) \cdot \beta(\psi_g) \\
-    & \approx p_{cLM}(w_g|\psi_g) \cdot \tilde{\beta} 
+    p_{cLM}(w_g| \text{&ltunk&gt}\psi_g) & \approx \beta(\psi_g) \cdot p_{cLM}(w_g|\psi_g)  \\
+    & \approx \tilde{\beta} \cdot p_{cLM}(w_g|\psi_g)
     \end{align*}
     \]
-    where \(\tilde{\beta}\) is now a tunable scalar parameter. Now because
+    where \(\tilde{\beta}\) is now a tunable scalar parameter. 
+    This is akin to assuming that an unknown word should be scaled again by its
+    context, and then making that scaling factor constant. Now because
     \(p_{cLM}(w_g|\psi_g)\) has been accumulating inside the word boundary at
-    previous steps, they don't include it in the second case.
+    previous steps, it isn't included in the second case.
     </p>
 
     <p>
     The <a href='#eq1'>third case</a> occurs when inside a word boundary, in which case, only
     the character-level language model is used. Note that these are cancelled
-    at every known-word boundary, but they help keep good hypotheses during beam
-    search while within a word.
+    at every known-word boundary, but they might help keep good hypotheses during
+    beam search, while within a word.
     </p>
 
     <h2>
