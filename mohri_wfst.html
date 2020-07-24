@@ -93,8 +93,9 @@
       finite state set \( Q \)
       </li>
       <li>
-      finite transition set \( E \subseteq Q \times (\Sigma \cup \{ \epsilon \}
-      ) \times \mathbb{R} \times Q \)
+      finite transition set
+      \[ E \subseteq Q \times (\Sigma \cup \{ \epsilon \}
+      ) \times \mathbb{R} \times Q \]
       </li>
       <li>
       initial state \( i \)
@@ -199,8 +200,11 @@
       \(\Omega\) is the output alphabet
       </li>
       <li>
-      the transition set \( E \subseteq Q \times (\Sigma \cup \{\epsilon\}) \times
-      (\Omega \cup \{\epsilon\}) \times \mathbb{K} \times Q \)
+      the transition set
+      \[ E \subseteq Q \times \Sigma' \times
+      \Omega' \times \mathbb{K} \times Q \]
+      where \(\Sigma' = \Sigma \cup \{\epsilon\}\), \(\Omega' = \Omega \cup
+      \{\epsilon\}\)
       </li>
     </ul>
 
@@ -465,7 +469,27 @@
     <p>
     Now minimization proceeds by weight pushing, where the potential function
     gives each state the lowest path weight from that state to the final state,
-    and then classical minimization.
+    and then classical
+    <a href='https://en.wikipedia.org/wiki/DFA_minimization#Nondistinguishable_states'>deterministic finite automata (DFA) minimization</a>.
+    </p>
+
+    <p>
+    Classical DFA minimization has two problems: unreachable states that can't
+    be accessed for any input string, which are relatively easy to find, and nondistinguishable
+    states that are distinct but can be reached by the same input string.
+    </p>
+
+    <p>
+    The Hopcroft algorithm (taken from Wikipedia above) for dealing with nondistinguishable states works roughly
+    as follows: start with an initial partition of final states and non-final states \(P = \{F, Q \setminus F\}\).
+    These definitely have different behavior given input strings. Now, iteratively,
+    choose a set \(A\) from \(P\) and an input symbol \(c\). Define \(X\) as
+    the set of states that lead to \(A\) when taking input \(c\), and split every other
+    \(Y \in P\) into \(Y \setminus X\) and \(Y \cap X\). Because \(A\) has
+    different behavior than other sets in \(P\), subsets leading to \(A\) will
+    be distinguishable from those that don't. When the size of \(P\) stay constant
+    (one or both of \(Y \setminus X\) and \(Y \cap X\) are empty for every
+    \(Y\)), make a new DFA with nodes corresponding to each of the sets in \(P\).
     </p>
 
     <h3>
