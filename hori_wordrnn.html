@@ -41,7 +41,7 @@
     </h1>
 
     <p>
-    While decoding in ASR, the typical way we frame the problem is that we'd
+    While decoding in speech recognition, the typical way we frame the problem is that we'd
     like to find the most probable character sequence \(\hat{C}\) given speech
     input \(X\):
     \[ \hat{C} = \text{argmax}_{C} \log p_{AM}(C | X) + \gamma \log p_{LM}(C) \]
@@ -52,9 +52,9 @@
     <p>
     When both the acoustic model and the language model have the same token set
     as input, it's simple to just sum their log probabilities at each token. However,
-    when their token sets are distinct, like for a character-level ASR model and
+    when their token sets are distinct, like for a character-level acoustic model and
     a word-level language model, it gets more complex. For the rest of this
-    write-up, we'll consider the case of a character-level acoustic model and
+    write-up, we'll consider that case of a character-level acoustic model and
     a word-level language model.
     </p>
 

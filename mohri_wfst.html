@@ -60,15 +60,18 @@
     
     <ul>
       <li>
-      \( (\mathbb{N}, +, \cdot, 0, 1) \) (notice the natural numbers
+      \( (\mathbb{N}, +, \cdot, 0, 1) \) (the natural numbers
       do not have additive inverses)
       </li>
       <li>
-      The probability semiring \( (\mathbb{R}, +, \cdot, 0, 1)
+      The probability semiring \( (\mathbb{R}, +, \cdot, 0, 1) \)
       </li>
       <li>
       The <em>tropical semiring</em> \( (\mathbb{R}_+ \cup \{\infty\}, \min, +,
-      \infty, 0) \)
+      \infty, 0) \), which seems like a strange object, but in our case will
+      be considered as an approximation to the image of the probability semiring
+      under \(-\log\). More explicitly, only when \(x\) and \(y\) are sufficiently
+      far apart is \(-\log (x + y) \approx \min\{-\log x, -\log y\}\).
       </li>
     </ul>
 
@@ -188,7 +191,7 @@
 
     <p>
     A <em>weighted finite-state transducer</em> \(T\) over semiring \(\mathbb{K}\)
-    is given by a tuple \( (\Sigma, \Omega, Q, E, i, F, \lambda, \rho) that has
+    is given by a tuple \( (\Sigma, \Omega, Q, E, i, F, \lambda, \rho)\) that has
     all the same elements as a WFSA except:
     </p>
 
@@ -200,7 +203,7 @@
       \(\Omega\) is the output alphabet
       </li>
       <li>
-      the transition set
+      the transition set is
       \[ E \subseteq Q \times \Sigma' \times
       \Omega' \times \mathbb{K} \times Q \]
       where \(\Sigma' = \Sigma \cup \{\epsilon\}\), \(\Omega' = \Omega \cup
@@ -209,7 +212,7 @@
     </ul>
 
     <p>
-    A <em>transition</em> \(t = (p[t], l_i[t], l_o[t], w[t], n[t]) \) is from
+    A <em>transition</em> \(t = (p[t], l_i[t], l_o[t], w[t], n[t]) \) maps from
     a source state \(p[t]\) to a destination state \(n[t]\) with weight \(w[t]\),
     input label \(l_i[t]\) and output label \(l_o[t]\).
     </p>
@@ -245,11 +248,11 @@
     </p>
     
     <p>
-    In the following figure, we can see a simple pronouncing dictionary for two
+    For a more useful example, the following figure gives a simple pronouncing dictionary for two
     words modeled as a WFST over the probability semiring. In this case we're
     mapping phones as input labels to words as output labels, where phones
     corresponding to the same word have \(\epsilon\) as their output label to
-    denote a repeat.
+    denote no change.
     </p>
 
     <div class='fig-wrapper'>
